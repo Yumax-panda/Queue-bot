@@ -18,8 +18,10 @@ class QueueBot(commands.Bot):
             case_insensitive=True,
             intents = intents
         )
+        self.LOG_CHANNEL: discord.TextChannel = None
 
     async def on_ready(self):
+        self.LOG_CHANNEL = self.get_channel(int(os.environ["LOG_CHANNEL_ID"]))
         print("Bot is ready!")
 
 bot = QueueBot()
