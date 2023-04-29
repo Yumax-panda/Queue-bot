@@ -105,9 +105,9 @@ class Team:
         return [cls(players = players, tag = tag) for tag, players in teams.items()]
 
 
-class GameState(Enum):
-    ONGOING = False
-    DONE = True
+class State(Enum):
+    ONGOING = True
+    DONE = False
 
     def __bool__(self) -> bool:
         return self._value_
@@ -139,8 +139,8 @@ class Game:
         return self.format == 1
 
     @property
-    def state(self) -> GameState:
-        return GameState.DONE if all(t.is_finished for t in self._teams) else GameState.ONGOING
+    def state(self) -> State:
+        return State.DONE if all(t.is_finished for t in self._teams) else State.ONGOING
 
     @property
     def ranking(self) -> list[Player]:

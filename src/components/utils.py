@@ -5,12 +5,29 @@ from typing import (
     Callable,
     Iterable,
 )
+from discord import Member
 from copy import copy
 import re
 
 T = TypeVar('T')
 _NON_NEGATIVE_INT_RE = re.compile(r'[0-9]+')
 
+
+def get_name(member: Member) -> str:
+    """Returns the name of the member.
+
+    Parameters
+    ----------
+    member : Member
+        The member to get the name from.
+
+    Returns
+    -------
+    str
+        The name of the member.
+    """
+
+    return member.name.replace(" ", "_")
 
 
 def find(predicate: Callable[[T], bool], iterable: Iterable[T]) -> Optional[T]:

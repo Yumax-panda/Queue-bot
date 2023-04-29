@@ -22,3 +22,19 @@ class InvalidPlayerNum(MyError):
         super().__init__(
             {"ja": f"プレイヤー数は{allowed_num}人のみです。", "en-US": f"Player number must be {allowed_num}."}
         )
+
+
+class TableNotFound(MyError):
+
+    def __init__(self) -> None:
+        super().__init__(
+            {"ja": "模擬データが見つかりませんでした。", "en-US": "Game data is not found."}
+        )
+
+
+class ArchivedTable(MyError):
+
+    def __init__(self) -> None:
+        super().__init__(
+            {"ja": "このゲームは終了しています。", "en-US": "This game is archived."}
+        )

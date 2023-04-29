@@ -2,6 +2,8 @@ from discord.ext import commands
 import discord
 import os
 
+from components.view import GatherView, FormatView
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -21,6 +23,10 @@ class QueueBot(commands.Bot):
         self.LOG_CHANNEL: discord.TextChannel = None
 
     async def on_ready(self):
+
+        for view in (GatherView, FormatView):
+            self.add_view(view())
+
         self.LOG_CHANNEL = self.get_channel(int(os.environ["LOG_CHANNEL_ID"]))
         print("Bot is ready!")
 
