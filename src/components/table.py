@@ -2,16 +2,21 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TypeVar, Type
 from discord.ui import View, string_select
 from discord import Embed, Colour, SelectOption
-from discord.utils import raw_mentions
 import random
 
 from errors import *
+from .utils import get_integers
+from .game import Game, Team, Player
 
 if TYPE_CHECKING:
-    from discord import Message, Interaction
+    from discord import Message, Interaction, Member
     from discord.ui import Select
 
 T = TypeVar("T")
+
+
+def get_name(member: Member) -> str:
+    return member.name.replace(" ", "_")
 
 
 class TableMixin:
@@ -66,18 +71,18 @@ class TableMixin:
 
 class GatherTable(TableMixin):
 
-    __slots__ = ("ids",)
+    __slots__ = ("names",)
 
     if TYPE_CHECKING:
-        ids: set[int]
+        names: set[str]
 
 
-    def __init__(self, ids: set[int],) -> None:
-        self.ids = ids
+    def __init__(self, names: set[str],) -> None:
+        self.names = names
 
 
     def __len__(self) -> int:
-        return len(self.ids)
+        return len(self.names)
 
 
     @property
@@ -85,13 +90,19 @@ class GatherTable(TableMixin):
         return Embed(
             title="Members",
             color=Colour.blurple(),
-            description="\n".join(f"{i+1}. <@{id}>" for i, id in enumerate(self.ids))
+            description="\n".join(f"{i+1}. {name}" for i, name in enumerate(self.names))
         )
 
 
     @classmethod
     def from_message(cls, message):
-        return cls(set(raw_mentions(message.embeds[0].description)))
+        e = message.embeds[0].copy()
+        names: set[str] = set()
+
+        for line in e.description.split("\n"):
+            names.union(line.split(". ")[1])
+
+        return cls(names)
 
 
 class FormatTable(TableMixin):
@@ -99,13 +110,13 @@ class FormatTable(TableMixin):
     __slots__ = ("data",)
 
     if TYPE_CHECKING:
-        data: dict[int, set[int]]
+        data: dict[int, set[str]]
 
 
-    def __init__(self, _data: dict[int, set[int]]) -> None:
+    def __init__(self, _data: dict[int, set[str]]) -> None:
         data = _data.copy()
 
-        if len(set().union(*data.values())) != 12:
+        if len(set().union(*_data.values())) != 12:
             raise InvalidPlayerNum(12)
 
         for key in {1, 2, 3, 4, 6, -1}:
@@ -124,8 +135,8 @@ class FormatTable(TableMixin):
         for k, v in self.data.items():
             if not v and k != -1:
                 e.add_field(name=name[k], value="No votes", inline=False)
-            else:
-                e.add_field(name=name[k], value=",".join(f"<@{id}>" for id in v), inline=False)
+            elif v:
+                e.add_field(name=name[k], value=",".join(n for n in v), inline=False)
 
         return e
 
@@ -133,29 +144,87 @@ class FormatTable(TableMixin):
     def from_message(cls, message):
         e = message.embeds[0].copy()
         name = {"FFA": 1, "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6, "Unvoted":-1}
-        return cls(
-            {name[e.fields[i].name]: set(raw_mentions(e.fields[i].value)) for i in range(len(e.fields))}
-        )
+        data: dict[int, set[str]] = {}
+
+        for field in e.fields:
+            data[name[field.name]] = set(field.value.split(","))
+
+        return cls(data)
 
 
-def make_teams(format: int, ids: set[int]) -> Embed:
+class GameTable(TableMixin):
 
-    if len(ids) != 12:
-        raise InvalidPlayerNum(12)
+    __slots__ = ("_game",)
 
-    tags = ("A", "B", "C", "D", "E", "F")
-    _ids = list(ids)
+    if TYPE_CHECKING:
+        _game: Game
 
-    indexes = list(range(12))
-    random.shuffle(indexes)
-    teams = [[_ids[index] for index in indexes[i:i+format]]for i in range(0, 12, format)]
-    f = {1: "FFA", 2: "2v2", 3: "3v3", 4: "4v4", 6: "6v6"}
-    e = Embed(title=f"Format: **{f[format]}**", color=Colour.blurple())
+    def __init__(
+        self,
+        _game: Game
+    ) -> None:
+        self._game = _game
 
-    for i, team in enumerate(teams):
-        e.add_field(name=f"Team {tags[i]}", value="\n".join(f"<@{id}>" for id in team), inline=False)
+    @property
+    def embed(self) -> Embed:
+        format = {1: "FFA", 2: "2v2", 3: "3v3", 4: "4v4", 6: "6v6"}[self._game.format]
+        e = Embed(title=f"Format: **{format}**", color=Colour.blurple())
 
-    return e
+        if self._game.format == 1:
+            for i, p in enumerate(self._game.ranking):
+                e.add_field(
+                    name=f"{i+1}. {p.name} @{p.left_race_num}",
+                    value=f"{p.total_point}pt ({'-'.join(str(point) for point in p.points)})",
+                    inline=False
+                )
+        else:
+            e.description = "**Ranking\n\n**"
+            for i, team in enumerate(self._game.teams):
+                e.description += f"{i+1}. {team.tag} {team.total_point}pt\n"
+            for i, p in enumerate(self._game.ranking):
+                e.add_field(
+                    name=f"{i+1}. {p.name} ({p.tag}) @{p.left_race_num}",
+                    value=f"{p.total_point}pt ({'-'.join(str(point) for point in p.points)})",
+                    inline=False
+                )
+
+        return e
+
+    @classmethod
+    def from_message(cls, message):
+        e = message.embeds[0].copy()
+        is_ffa: bool = "FFA" in e.title
+        players: list[Player] = []
+
+        for field in e.fields:
+            data = field.value.split(" ")
+            payload = {"points": get_integers(field.value.split(" ")[-1]), "name": data[1]}
+            if not is_ffa:
+                payload["tag"] = data[2][2]
+            players.append(Player(**payload))
+        if is_ffa:
+            return cls(Game([Team(players=[p], tag=None) for p in players]))
+        else:
+            return cls(Game(Team.make_teams(players)))
+
+
+    @classmethod
+    def initialize(cls: Type[T], format: int, names: list[str]) -> T:
+        _names = names.copy()
+        _tags = ["A", "B", "C", "D", "E", "F"]
+
+        random.shuffle(_names)
+        tag = _tags[:len(_names)]*format
+
+        if format == 1:
+            return cls(Game(Team.make_teams([Player(name=name, tag=None) for name in _names])))
+        else:
+            teams = Team.make_teams([Player(name=name, tag=tag) for name, tag in zip(_names, tag)])
+            return cls(Game(teams))
+
+
+
+
 
 
 
@@ -188,7 +257,7 @@ class FormatView(View):
         table = FormatTable.from_message(interaction.message)
 
         for k in {1, 2, 3, 4, 6, -1}:
-            table.data[k].difference_update(interaction.user.id)
+            table.data[k].difference_update(get_name(interaction.user.name))
 
         table.data[select.values[0]].update(interaction.user.id)
         await interaction.message.edit(embed=table.embed, view=FormatView())
@@ -199,6 +268,5 @@ class FormatView(View):
 
         if not table.data[-1]:
             format = max(table.data, key=lambda x: len(table.data[x]))
-            await interaction.followup.send(embed=make_teams(format, set().union(*table.data.values())), ephemeral=False)
-            self.stop()
+            await interaction.followup.send(embed=GameTable.initialize(format, set().union(*table.data.values())).embed, ephemeral=False)
             await self.message.edit(view=None)
