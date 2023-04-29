@@ -6,6 +6,7 @@ from discord import SelectOption
 from errors import MyError
 from .table import GatherTable, FormatTable, GameTable
 from .utils import get_name
+from .game import State
 
 
 if TYPE_CHECKING:
@@ -52,7 +53,7 @@ class GatherView(_BaseView):
         super().__init__()
 
 
-    @button(label="Join", custom_id="_join_button")
+    @button(label="Join", custom_id="gather_join_button")
     async def join(self, button: Button, interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
         table = GatherTable.from_message(interaction.message)
@@ -73,7 +74,7 @@ class GatherView(_BaseView):
             )
 
 
-    @button(label="Cancel", custom_id="_cancel_button")
+    @button(label="Cancel", custom_id="gather_cancel_button")
     async def cancel(self, button: Button, interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
         table = GatherTable.from_message(interaction.message)
@@ -93,7 +94,7 @@ class FormatView(_BaseView):
 
 
     @string_select(
-        custom_id="format",
+        custom_id="format_select",
         placeholder="Select your preferred format",
         options=[
             SelectOption(label="FFA", value="1"),
@@ -123,8 +124,23 @@ class FormatView(_BaseView):
 
         if not table.data[-1]:
             format = max(table.data, key=lambda x: len(table.data[x]))
-            await interaction.followup.send(embed=GameTable.initialize(format, set().union(*table.data.values())).embed, ephemeral=False)
+            await interaction.followup.send(embed=GameTable.initialize(format, list(set().union(*table.data.values()))).embed, ephemeral=False)
             await self.message.edit(view=None)
+
+
+    @button(label="Start", custom_id="format_start_button")
+    async def start(self, button: Button, interaction: Interaction) -> None:
+        await interaction.response.defer(ephemeral=False)
+        table = FormatTable.from_message(interaction.message)
+        data = table.data.copy()
+        data.pop(-1, None)
+        format = max(data, key=lambda x: len(table.data[x]))
+        await interaction.followup.send(
+            embed=GameTable.initialize(format, list(set().union(*table.data.values()))).embed,
+            ephemeral=False
+        )
+        table.state = State.DONE
+        await table.message.edit(embed=table.embed, view=None)
 
 
     async def interaction_check(self, interaction: Interaction):

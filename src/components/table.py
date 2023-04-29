@@ -311,7 +311,7 @@ class GameTable(TableMixin):
             for i, p in enumerate(self._game.ranking):
                 e.add_field(
                     name=f"{i+1}. {p.name} @{p.left_race_num}",
-                    value=f"{p.total_point}pt ({'-'.join(str(point) for point in p.points)})",
+                    value=f"> {p.total_point}pt ({'-'.join(str(point) for point in p.points)})",
                     inline=False
                 )
         else:
@@ -321,7 +321,7 @@ class GameTable(TableMixin):
             for i, p in enumerate(self._game.ranking):
                 e.add_field(
                     name=f"{i+1}. {p.name} ({p.tag}) @{p.left_race_num}",
-                    value=f"{p.total_point}pt ({'-'.join(str(point) for point in p.points)})",
+                    value=f"> {p.total_point}pt ({'-'.join(str(point) for point in p.points)})",
                     inline=False
                 )
 
@@ -335,8 +335,11 @@ class GameTable(TableMixin):
         players: list[Player] = []
 
         for field in e.fields:
-            data = field.value.split(" ")
-            payload = {"points": get_integers(field.value.split(" ")[-1]), "name": data[1]}
+            data = field.name.split(" ")
+            payload = {
+                "points": get_integers(field.value[2:].split(" ")[-1]),
+                "name": field.name.split(" ")[1]
+            }
             if not is_ffa:
                 payload["tag"] = data[2][2]
             players.append(Player(**payload))
@@ -365,7 +368,8 @@ class GameTable(TableMixin):
         tag = _tags[:len(_names)]*format
 
         if format == 1:
-            return cls(Game(Team.make_teams([Player(name=name, tag=None) for name in _names])))
+            teams = [Team([Player(name=name,tag=None)], None) for name in _names]
+            return cls(Game(teams))
         else:
             teams = Team.make_teams([Player(name=name, tag=tag) for name, tag in zip(_names, tag)])
             return cls(Game(teams))
