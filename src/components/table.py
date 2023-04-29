@@ -106,8 +106,8 @@ class TableMixin:
         )
 
 
-    @classmethod
-    def is_valid(cls, message: Message) -> bool:
+    @staticmethod
+    def is_valid(message: Message) -> bool:
         """Returns whether the message is a valid table.
 
         Parameters
@@ -192,7 +192,7 @@ class GatherTable(TableMixin):
 
         if type(e.description) is not _EmptyEmbed:
             for line in e.description.split("\n"):
-                names.union(line.split(". ")[1])
+                names.add(line.split(". ")[1])
 
         state = State.ONGOING if e.color == ON_GOING_COLOR else State.DONE
 
@@ -246,11 +246,13 @@ class FormatTable(TableMixin):
 
         name = {1: "FFA", 2: "2v2", 3: "3v3", 4: "4v4", 6: "6v6", -1: "Unvoted"}
 
-        for k, v in self.data.items():
+        for k in (1, 2, 3, 4, 6, -1):
+            v = self.data[k].copy()
+
             if not v and k != -1:
-                e.add_field(name=name[k], value="No votes", inline=False)
+                e.add_field(name=name[k], value="> No votes", inline=False)
             elif v:
-                e.add_field(name=name[k], value=",".join(n for n in v), inline=False)
+                e.add_field(name=name[k], value="> "+",".join(n for n in v), inline=False)
 
         return e
 
@@ -262,7 +264,9 @@ class FormatTable(TableMixin):
         data: dict[int, set[str]] = {}
 
         for field in e.fields:
-            data[name[field.name]] = set(field.value.split(","))
+            if field.value == "> No votes":
+                continue
+            data[name[field.name]] = set(field.value[2:].split(","))
 
         return cls(data, message, state)
 

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from discord.ext import commands
 from discord import Member
 
+from errors import *
 from components.view import GatherView, FormatView
 from components.table import GatherTable, FormatTable, GameTable
 
@@ -21,17 +22,24 @@ class Gather(commands.Cog, name="Gather"):
     @commands.guild_only()
     async def start(self, ctx: commands.Context) -> None:
         await ctx.send(
-            "Starting a gather...",
             embed=GatherTable({ctx.author.name.replace(" ", "_")}).embed,
             view=GatherView()
         )
 
 
-    @commands.command()
+    @commands.command(aliases=['c'])
     @commands.guild_only()
-    async def can(self, ctx: commands.Context, member: Optional[Member] = None) -> None:
+    async def can(self, ctx: commands.Context, members: commands.Greedy[Member] = []) -> None:
         table = await GatherTable.fetch(ctx.channel)
-        table.add_name(member if member is not None else ctx.author)
+        _members = members or [ctx.author]
+
+        if len(_members) + len(table.names) > 12:
+            raise InvalidPlayerNum
+
+        for m in _members:
+            table.add_name(m)
+
+        await ctx.send(f"{', '.join(m.mention for m in _members)} has joined the game. (@{12-len(table.names)})")
 
         if not table.state:
             await table.message.edit(embed=table.embed, view=None)

@@ -112,9 +112,9 @@ class FormatView(_BaseView):
         table = FormatTable.from_message(interaction.message)
 
         for k in {1, 2, 3, 4, 6, -1}:
-            table.data[k].difference_update(get_name(interaction.user))
+            table.data[k].discard(get_name(interaction.user))
 
-        table.data[int(select.values[0])].update(get_name(interaction.user))
+        table.data[int(select.values[0])].add(get_name(interaction.user))
         await interaction.message.edit(embed=table.embed, view=FormatView())
         await interaction.followup.send(
             "Your vote has been recorded" if interaction.locale != 'ja' else '投票が記録されました',
@@ -129,7 +129,7 @@ class FormatView(_BaseView):
 
     async def interaction_check(self, interaction: Interaction):
         table = FormatTable.from_message(interaction.message)
-        return get_name(interaction.user)  not in set().union(*table.data.values())
+        return get_name(interaction.user)  in set().union(*table.data.values())
 
 
     async def on_check_failure(self, interaction: Interaction):

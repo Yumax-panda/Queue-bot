@@ -98,7 +98,7 @@ class Team:
             The teams made from players.
         """
 
-        tags = set().union(*[p.tag for p in players])
+        tags = set().union([p.tag for p in players])
         teams: dict[str, list[Player]] = {tag: [] for tag in tags}
         for player in players:
             teams[player.tag].append(player)
