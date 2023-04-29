@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING, Optional
+from discord import ApplicationCommandError
+from discord.ext.commands import CommandError
 
-class MyError(Exception):
+class MyError(ApplicationCommandError, CommandError):
     """An error that can be localized."""
 
     __slots__ = ("localizations", )
@@ -37,4 +39,36 @@ class ArchivedTable(MyError):
     def __init__(self) -> None:
         super().__init__(
             {"ja": "このゲームは終了しています。", "en-US": "This game is archived."}
+        )
+
+
+class InvalidRank(MyError):
+
+    def __init__(self) -> None:
+        super().__init__(
+            {"ja": "順位は1~12の整数で指定してください。", "en-US": "Rank must be an integer between 1 and 12."}
+        )
+
+
+class AlreadyFinished(MyError):
+
+    def __init__(self) -> None:
+        super().__init__(
+            {"ja": "既に12レース終了しています。", "en-US": "This game is already finished."}
+        )
+
+
+class InvalidRaceNumber(MyError):
+
+    def __init__(self) -> None:
+        super().__init__(
+            {"ja": "レース番号が不正です。", "en-US": "Invalid race number."}
+        )
+
+
+class NotParticipant(MyError):
+
+    def __init__(self, name: str) -> None:
+        super().__init__(
+            {"ja": f"この{name}はゲームに参加していません。", "en-US": f"{name} is not a participant."}
         )

@@ -2,13 +2,14 @@ from discord.ext import commands
 import discord
 import os
 
-from components.view import GatherView, FormatView
+from components.view import GatherView, FormatView, GameView
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 extensions = [
+    "cogs.admin",
     "cogs.gather",
 ]
 
@@ -24,7 +25,11 @@ class QueueBot(commands.Bot):
 
     async def on_ready(self):
 
-        for view in (GatherView, FormatView):
+        for view in (
+            GatherView,
+            FormatView,
+            GameView
+        ):
             self.add_view(view())
 
         self.LOG_CHANNEL = self.get_channel(int(os.environ["LOG_CHANNEL_ID"]))

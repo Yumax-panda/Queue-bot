@@ -1,6 +1,9 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Optional, TypeVar, Type, Union
 from enum import Enum
+from urllib.parse import quote
+
+from errors import *
 
 T = TypeVar('T')
 
@@ -46,6 +49,64 @@ class Player:
     @property
     def total_point(self) -> int:
         return sum(self.points)
+
+    def add_rank(self, rank: Union[str, int]) -> None:
+        """Add a rank to the player.
+
+        Parameters
+        ----------
+        rank : Union[str, int]
+            The rank to add.
+        """
+
+        points = {1:15, 2:12, 3:10, 4:9, 5:8, 6:7, 7:6, 8:5, 9:4, 10:3, 11:2, 12:1}
+
+        if str(rank) not in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]:
+            raise InvalidRank
+
+        if len(self.points) == 12:
+            raise AlreadyFinished
+
+        self.points.append(points[int(rank)])
+
+
+    def remove_rank(self, _index: int=-1) -> None:
+        """Remove a rank from the player.
+
+        Parameters
+        ----------
+        _index : int
+            The index of the rank to remove.
+        """
+
+        try:
+            self.points.pop(_index)
+        except IndexError:
+            raise InvalidRank
+
+
+    def edit_rank(self, rank: Union[str, int], _index: int=-1) -> None:
+        """Edit a rank of the player.
+
+        Parameters
+        ----------
+        rank : Union[str, int]
+            The rank to edit.
+        _index : int
+            The index of the rank to edit.
+        """
+
+        points = {1:15, 2:12, 3:10, 4:9, 5:8, 6:7, 7:6, 8:5, 9:4, 10:3, 11:2, 12:1}
+
+        if str(rank) not in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]:
+            raise InvalidRank
+
+        try:
+            self.points[_index] = points[int(rank)]
+        except IndexError:
+            raise InvalidRank
+
+
 
 
 class Team:
@@ -102,7 +163,7 @@ class Team:
         teams: dict[str, list[Player]] = {tag: [] for tag in tags}
         for player in players:
             teams[player.tag].append(player)
-        return [cls(players = players, tag = tag) for tag, players in teams.items()]
+        return [cls(players = ps, tag = tag) for tag, ps in teams.items()]
 
 
 class State(Enum):
@@ -156,3 +217,43 @@ class Game:
         for t in self._teams:
             players.extend(t.players)
         return sorted(players, key = lambda p: p.total_point, reverse = True)
+
+
+    def get_player(self, name: str) -> Player:
+        """Get player by name.
+
+        Parameters
+        ----------
+        name : str
+            The name of the player to get.
+
+        Returns
+        -------
+        Player
+            The player with the given name.
+        """
+
+        for t in self._teams:
+            for p in t.players:
+                if p.name == name:
+                    return p
+        raise NotParticipant(name)
+
+
+    def result_url(self, title: str = "Result") -> str:
+        size = self.format
+        base = "https://gb.hlorenzi.com/table.png?data="
+        table_text = f"#title {title} "
+
+        if size == 1:
+            table_text += "FFA\nFFA - Free for All #4A82D0\n"
+            for player in self.ranking:
+                table_text += f"{player.name} [] {player.total_point}\n"
+        else:
+            table_text += f"{size}v{size}\n"
+            for index, team in enumerate(sorted(self._teams, key = lambda t: t.total_point, reverse = True)):
+                color = "#1D6ADE" if index % 2 == 0 else "#4A82D0"
+                table_text += f"{index+1} {color}\n"
+                for p in team.players:
+                    table_text += f"{p.name} [] {p.total_point}\n"
+        return base + quote(table_text)

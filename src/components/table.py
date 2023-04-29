@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import random
 
 from errors import *
-from .utils import get_integers
+from .utils import get_integers, get_name
 from .game import Game, Team, Player, State
 
 if TYPE_CHECKING:
@@ -159,7 +159,7 @@ class GatherTable(TableMixin):
             The member to add to the table.
         """
 
-        self.names.add(member.name.replace(" ", "_"))
+        self.names.add(get_name(member))
 
         if len(self.names) == 12:
             self.state = State.DONE
@@ -173,7 +173,7 @@ class GatherTable(TableMixin):
         member : Member
             The member to remove from the table.
         """
-        self.names.remove(member.name.replace(" ", "_"))
+        self.names.discard(get_name(member))
 
 
     @property
@@ -317,7 +317,7 @@ class GameTable(TableMixin):
         else:
             e.description = "**Ranking\n\n**"
             for i, team in enumerate(self._game.teams):
-                e.description += f"{i+1}. {team.tag} {team.total_point}pt\n"
+                e.description += f"`{i+1}.` **{team.tag}**  ({team.total_point}pt)\n"
             for i, p in enumerate(self._game.ranking):
                 e.add_field(
                     name=f"{i+1}. {p.name} ({p.tag}) @{p.left_race_num}",
@@ -341,7 +341,7 @@ class GameTable(TableMixin):
                 "name": field.name.split(" ")[1]
             }
             if not is_ffa:
-                payload["tag"] = data[2][2]
+                payload["tag"] = data[2][1]
             players.append(Player(**payload))
         if is_ffa:
             return cls(Game([Team(players=[p], tag=None) for p in players]), message, state)
@@ -389,5 +389,5 @@ class GameTable(TableMixin):
             True if the member is in the game, False otherwise
         """
 
-        name = member.name.replace(" ", "_")
+        name = get_name(member)
         return any(name in [p.name for p in team._players] for team in self._game.teams)

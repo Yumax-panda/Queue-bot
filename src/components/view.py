@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from discord.ui import View, string_select, button
-from discord import SelectOption
+from discord import SelectOption, Embed
 
 from errors import MyError
 from .table import GatherTable, FormatTable, GameTable
@@ -60,6 +60,7 @@ class GatherView(_BaseView):
         table.names.add(get_name(interaction.user))
 
         if len(table.names) == 12:
+            table.state = State.DONE
             await interaction.message.edit(embed=table.embed, view=None)
             await interaction.followup.send(
                 content="Select format you prefer." if interaction.locale != 'ja' else 'ゲームの形式を選択してください。',
@@ -124,8 +125,13 @@ class FormatView(_BaseView):
 
         if not table.data[-1]:
             format = max(table.data, key=lambda x: len(table.data[x]))
-            await interaction.followup.send(embed=GameTable.initialize(format, list(set().union(*table.data.values()))).embed, ephemeral=False)
-            await self.message.edit(view=None)
+            await interaction.followup.send(
+                embed=GameTable.initialize(format, list(set().union(*table.data.values()))).embed,
+                view=GameView(),
+                ephemeral=False
+            )
+            table.state = State.DONE
+            await self.message.edit(embed=table.embed, view=None)
 
 
     @button(label="Start", custom_id="format_start_button")
@@ -137,6 +143,7 @@ class FormatView(_BaseView):
         format = max(data, key=lambda x: len(table.data[x]))
         await interaction.followup.send(
             embed=GameTable.initialize(format, list(set().union(*table.data.values()))).embed,
+            view=GameView(),
             ephemeral=False
         )
         table.state = State.DONE
@@ -153,3 +160,20 @@ class FormatView(_BaseView):
             "You cannot vote." if interaction.locale != 'ja' else '投票する権限がありません。',
             ephemeral=True
         )
+
+
+class GameView(_BaseView):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+    @button(label="End", custom_id="game_finish_button")
+    async def end(self, button: Button, interaction: Interaction) -> None:
+        await interaction.response.defer(ephemeral=False)
+        table = GameTable.from_message(interaction.message)
+        e = Embed(title="Game Result")
+        e.set_image(url=table._game.result_url())
+        table.state = State.DONE
+        await interaction.followup.send(embed=e, ephemeral=False)
+        await interaction.message.edit(embed=table.embed, view=None)
