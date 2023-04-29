@@ -10,7 +10,7 @@ from .game import Game, Team, Player
 
 if TYPE_CHECKING:
     from discord import Message, Interaction, Member
-    from discord.ui import Select
+    from discord.ui import Select, Item
 
 T = TypeVar("T")
 
@@ -223,11 +223,6 @@ class GameTable(TableMixin):
             return cls(Game(teams))
 
 
-
-
-
-
-
 class FormatView(View):
 
     def __init__(self) -> None:
@@ -270,3 +265,35 @@ class FormatView(View):
             format = max(table.data, key=lambda x: len(table.data[x]))
             await interaction.followup.send(embed=GameTable.initialize(format, set().union(*table.data.values())).embed, ephemeral=False)
             await self.message.edit(view=None)
+
+
+    async def interaction_check(self, interaction: Interaction):
+        table = FormatTable.from_message(interaction.message)
+        return get_name(interaction.user.name)  not in set().union(*table.data.values())
+
+
+    async def on_check_failure(self, interaction: Interaction):
+        await interaction.response.send_message(
+            "You cannot vote." if interaction.locale != 'ja' else '投票する権限がありません。',
+            ephemeral=True
+        )
+
+    async def on_timeout(self) -> None:
+        await self.message.edit(view=None)
+
+
+    async def on_error(self, error: Exception, item: Item, interaction: Interaction):
+        if isinstance(error, MyError):
+            if interaction.response.is_done():
+                await interaction.followup.send(
+                    error.localize(interaction.locale),
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    error.localize(interaction.locale),
+                    ephemeral=True
+                )
+            return
+
+        raise error
