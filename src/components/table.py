@@ -259,7 +259,7 @@ class FormatView(View):
         for k in {1, 2, 3, 4, 6, -1}:
             table.data[k].difference_update(get_name(interaction.user.name))
 
-        table.data[select.values[0]].update(interaction.user.id)
+        table.data[select.values[0]].update(get_name(interaction.user.name))
         await interaction.message.edit(embed=table.embed, view=FormatView())
         await interaction.followup.send(
             "Your vote has been recorded" if interaction.locale != 'ja' else '投票が記録されました',
