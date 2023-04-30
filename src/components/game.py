@@ -81,7 +81,7 @@ class Player:
         try:
             self.points.pop(_index)
         except IndexError:
-            raise InvalidRank
+            raise InvalidRaceNumber
 
 
     def edit_rank(self, rank: Union[str, int], _index: int=-1) -> None:
@@ -103,7 +103,7 @@ class Player:
         try:
             self.points[_index] = points[int(rank)]
         except IndexError:
-            raise InvalidRank
+            raise InvalidRaceNumber
 
 
 

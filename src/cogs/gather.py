@@ -63,7 +63,6 @@ class Gather(commands.Cog, name="Gather"):
         await ctx.send(f"{', '.join(m.mention for m in _members)} has dropped the game. (@{12-len(table.names)})")
 
 
-
     @commands.command(aliases=['a', "add"])
     @commands.guild_only()
     async def add_rank(
@@ -89,10 +88,34 @@ class Gather(commands.Cog, name="Gather"):
 
     @commands.command()
     @commands.guild_only()
+    async def edit(
+        self,
+        ctx: commands.Context,
+        _index: int,
+        rank: int,
+    ) -> None:
+        table = await GameTable.fetch(ctx.channel)
+        table._game.get_player(get_name(ctx.author)).edit_rank(rank, _index-1)
+        await table.message.edit(embed=table.embed)
+        await ctx.send("順位を編集しました。")
+
+
+    @commands.command()
+    @commands.guild_only()
     async def end(self, ctx: commands.Context) -> None:
         table = await GameTable.fetch(ctx.channel)
         table.is_done = True
         await table.message.edit(embed=table.embed, view=ResumeView())
+        await ctx.send("ゲームを終了しました")
+
+
+    @commands.command()
+    @commands.guild_only()
+    async def resume(self, ctx: commands.Context) -> None:
+        table = await GameTable.fetch(ctx.channel)
+        table.is_done = False
+        await table.message.edit(embed=table.embed, view=GameView())
+        await ctx.send("ゲームを再開しました")
 
 
     @commands.Cog.listener("on_message")
