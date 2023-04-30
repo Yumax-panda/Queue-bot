@@ -2,7 +2,12 @@ from discord.ext import commands
 import discord
 import os
 
-from components.view import GatherView, FormatView, GameView
+from components.view import (
+    GatherView,
+    FormatView,
+    GameView,
+    ResumeView
+)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -28,7 +33,8 @@ class QueueBot(commands.Bot):
         for view in (
             GatherView,
             FormatView,
-            GameView
+            GameView,
+            ResumeView
         ):
             self.add_view(view())
 

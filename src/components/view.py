@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from discord.ui import View, string_select, button
-from discord import SelectOption, Embed
+from discord import SelectOption
 
 from errors import MyError
 from .table import GatherTable, FormatTable, GameTable
@@ -65,7 +65,8 @@ class GatherView(_BaseView):
             await interaction.followup.send(
                 content="Select format you prefer." if interaction.locale != 'ja' else 'ゲームの形式を選択してください。',
                 embed=FormatTable({-1: table.names.copy()}).embed,
-                view=FormatView()
+                view=FormatView(),
+                ephemeral=False
             )
         else:
             await interaction.message.edit(embed=table.embed, view=GatherView())
@@ -117,11 +118,6 @@ class FormatView(_BaseView):
             table.data[k].discard(get_name(interaction.user))
 
         table.data[int(select.values[0])].add(get_name(interaction.user))
-        await interaction.message.edit(embed=table.embed, view=FormatView())
-        await interaction.followup.send(
-            "Your vote has been recorded" if interaction.locale != 'ja' else '投票が記録されました',
-            ephemeral=True
-        )
 
         if not table.data[-1]:
             format = max(table.data, key=lambda x: len(table.data[x]))
@@ -131,7 +127,15 @@ class FormatView(_BaseView):
                 ephemeral=False
             )
             table.state = State.DONE
-            await self.message.edit(embed=table.embed, view=None)
+            await interaction.message.edit(embed=table.embed, view=None)
+        else:
+            await interaction.message.edit(embed=table.embed, view=FormatView())
+            await interaction.followup.send(
+                "Your vote has been recorded" if interaction.locale != 'ja' else '投票が記録されました',
+                ephemeral=True
+            )
+
+
 
 
     @button(label="Start", custom_id="format_start_button")
@@ -139,8 +143,11 @@ class FormatView(_BaseView):
         await interaction.response.defer(ephemeral=False)
         table = FormatTable.from_message(interaction.message)
         data = table.data.copy()
+        print(data)
         data.pop(-1, None)
+        print(data)
         format = max(data, key=lambda x: len(table.data[x]))
+        print(format)
         await interaction.followup.send(
             embed=GameTable.initialize(format, list(set().union(*table.data.values()))).embed,
             view=GameView(),
@@ -172,8 +179,24 @@ class GameView(_BaseView):
     async def end(self, button: Button, interaction: Interaction) -> None:
         await interaction.response.defer(ephemeral=False)
         table = GameTable.from_message(interaction.message)
-        e = Embed(title="Game Result")
-        e.set_image(url=table._game.result_url())
         table.state = State.DONE
-        await interaction.followup.send(embed=e, ephemeral=False)
-        await interaction.message.edit(embed=table.embed, view=None)
+        await interaction.message.edit(embed=table.embed, view=ResumeView())
+        await interaction.followup.send(
+            "ゲームを終了しました。" if interaction.locale == 'ja' else 'Game has ended.',
+        )
+
+
+class ResumeView(_BaseView):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    @button(label="Resume", custom_id="resume_button")
+    async def resume(self, button: Button, interaction: Interaction) -> None:
+        await interaction.response.defer(ephemeral=False)
+        table = GameTable.from_message(interaction.message)
+        table.state = State.ONGOING
+        await interaction.message.edit(embed=table.embed, view=GameView())
+        await interaction.followup.send(
+            "ゲームを再開しました。" if interaction.locale == 'ja' else 'Game has resumed.',
+        )

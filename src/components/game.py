@@ -240,10 +240,11 @@ class Game:
         raise NotParticipant(name)
 
 
-    def result_url(self, title: str = "Result") -> str:
+    @property
+    def result_url(self) -> str:
         size = self.format
         base = "https://gb.hlorenzi.com/table.png?data="
-        table_text = f"#title {title} "
+        table_text = f"#title Result "
 
         if size == 1:
             table_text += "FFA\nFFA - Free for All #4A82D0\n"

@@ -325,6 +325,9 @@ class GameTable(TableMixin):
                     inline=False
                 )
 
+        if self.state == State.DONE or self._game.state == State.DONE:
+            e.set_image(url=self._game.result_url)
+
         return e
 
     @classmethod
@@ -365,7 +368,7 @@ class GameTable(TableMixin):
         _tags = ["A", "B", "C", "D", "E", "F"]
 
         random.shuffle(_names)
-        tag = _tags[:len(_names)]*format
+        tag = _tags[:int(12/format)]*format
 
         if format == 1:
             teams = [Team([Player(name=name,tag=None)], None) for name in _names]
