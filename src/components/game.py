@@ -49,13 +49,19 @@ class Player:
     def total_point(self) -> int:
         return sum(self.points)
 
-    def add_rank(self, rank: Union[str, int]) -> None:
+    def add_rank(
+        self,
+        rank: Union[str, int],
+        _race_num: int = 12
+    ) -> None:
         """Add a rank to the player.
 
         Parameters
         ----------
         rank : Union[str, int]
             The rank to add.
+        _race_num : int, optional
+            The race number to add the rank.
         """
 
         points = {1:15, 2:12, 3:10, 4:9, 5:8, 6:7, 7:6, 8:5, 9:4, 10:3, 11:2, 12:1}
@@ -66,7 +72,7 @@ class Player:
         if len(self.points) == 12:
             raise AlreadyFinished
 
-        self.points.append(points[int(rank)])
+        self.points.insert(_race_num-1, points[int(rank)])
 
 
     def remove_rank(self, _index: int=-1) -> None:
