@@ -142,11 +142,8 @@ class FormatView(_BaseView):
         await interaction.response.defer(ephemeral=False)
         table = FormatTable.from_message(interaction.message)
         data = table.data.copy()
-        print(data)
         data.pop(-1, None)
-        print(data)
         format = max(data, key=lambda x: len(table.data[x]))
-        print(format)
         await interaction.followup.send(
             embed=GameTable.initialize(format, list(set().union(*table.data.values()))).embed,
             view=GameView(),

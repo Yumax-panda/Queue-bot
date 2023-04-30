@@ -13,7 +13,7 @@ class MyError(ApplicationCommandError, CommandError):
     def __init__(self, localizations: dict[str, str]) -> None:
         self.localizations = localizations
 
-    def localize(self, locale: Optional[str]) -> str:
+    def localize(self, locale: Optional[str]= None) -> str:
         default = "\n".join(self.localizations.values())
         return self.localizations.get(locale, default)
 

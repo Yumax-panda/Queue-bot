@@ -95,7 +95,7 @@ class Admin(commands.Cog, name="Admin"):
         content: Optional[str] = None
 
         if isinstance(error, MyError):
-            content = error.localize(None)
+            content = error.localize()
         elif isinstance(error, commands.NoPrivateMessage):
             content = 'DMでこのコマンドは使えません。\nThis command is not available in DM channels.'
         elif isinstance(error, commands.CommandNotFound):
