@@ -20,13 +20,15 @@ extensions = [
 
 class QueueBot(commands.Bot):
 
-    def __init__(self) -> None:
+    def __init__(self, command_prefix="$") -> None:
         super().__init__(
-            command_prefix=commands.when_mentioned_or('$'),
-            case_insensitive=True,
-            intents = intents
+            command_prefix = commands.when_mentioned_or(command_prefix),
+            case_insensitive = True,
+            intents = intents,
+            help_command = None
         )
         self.LOG_CHANNEL: discord.TextChannel = None
+        self._qualified_prefix = command_prefix
 
     async def on_ready(self):
 

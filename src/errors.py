@@ -72,3 +72,11 @@ class NotParticipant(MyError):
         super().__init__(
             {"ja": f"この{name}はゲームに参加していません。", "en-US": f"{name} is not a participant."}
         )
+
+
+class NotFoundError(MyError):
+
+    def __init__(self) -> None:
+        super().__init__(
+            {"ja": "見つかりませんでした。", "en-US": "Not found."}
+        )

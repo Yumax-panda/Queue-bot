@@ -1,9 +1,13 @@
 from typing import TYPE_CHECKING
-from discord.ext import commands
+from discord.ext import commands, pages
 from discord import (
+    Embed,
     Member,
     Option,
     DMChannel,
+    OptionChoice,
+    SlashCommand,
+    slash_command,
     SlashCommandGroup,
     ApplicationContext
 )
@@ -23,12 +27,23 @@ class Gather(commands.Cog, name="Gather"):
 
     def __init__(self, bot: "QueueBot") -> None:
         self.bot: QueueBot = bot
+        self.is_public: bool = True
+        self.description: str = "Game commands"
+        self.description_localizations: dict[str, str] = {
+            "ja": "ゲーム用コマンド",
+            "en-US": "Game commands"
+        }
 
     game = SlashCommandGroup(name="game", description="Game related commands")
     race = game.create_subgroup(name="race")
 
 
-    @commands.command()
+    @commands.command(
+        name="start",
+        description="Call for participants in the game",
+        brief="ゲームの参加者を募集",
+        usage="start"
+    )
     @commands.guild_only()
     async def start(self, ctx: commands.Context) -> None:
         await ctx.send(
@@ -52,7 +67,13 @@ class Gather(commands.Cog, name="Gather"):
         )
 
 
-    @commands.command(aliases=['c'])
+    @commands.command(
+        aliases=['c'],
+        name="can",
+        description="Join the game",
+        brief="ゲームに参加",
+        usage="can [@member...]"
+    )
     @commands.guild_only()
     async def can(self, ctx: commands.Context, members: commands.Greedy[Member] = []) -> None:
         table = await GatherTable.fetch(ctx.channel)
@@ -108,7 +129,13 @@ class Gather(commands.Cog, name="Gather"):
             await table.message.edit(embed=table.embed)
 
 
-    @commands.command(aliases=['d'])
+    @commands.command(
+        aliases=['d'],
+        name="drop",
+        description="Drop the game",
+        brief="ゲームの参加を取り消す",
+        usage="drop [@member...]"
+    )
     @commands.guild_only()
     async def drop(self, ctx: commands.Context, members: commands.Greedy[Member] = []) -> None:
         table = await GatherTable.fetch(ctx.channel)
@@ -150,16 +177,22 @@ class Gather(commands.Cog, name="Gather"):
         )
 
 
-    @commands.command(aliases=['a', "add"])
+    @commands.command(
+        aliases=['a'],
+        name="add",
+        description="Register your race standings",
+        brief="レースの順位を登録",
+        usage="add <rank> [race_number]"
+    )
     @commands.guild_only()
     async def add_rank(
         self,
         ctx: commands.Context,
         rank: int,
-        target: Optional[Member] = None,
+        number: int = 12,
     ) -> None:
         table = await GameTable.fetch(ctx.channel)
-        table._game.get_player(get_name(target or ctx.author)).add_rank(rank)
+        table._game.get_player(get_name(ctx.author)).add_rank(rank, number)
         await ctx.send(embed=table.embed, view=GameView())
         await table.message.delete()
 
@@ -202,7 +235,13 @@ class Gather(commands.Cog, name="Gather"):
         await table.message.delete()
 
 
-    @commands.command(aliases=['r', "remove", "b"])
+    @commands.command(
+        aliases=['r', "remove", "b"],
+        name="back",
+        description="Back one race",
+        brief="レースを一つ戻す",
+        usage="back"
+    )
     @commands.guild_only()
     async def back(self, ctx: commands.Context) -> None:
         table = await GameTable.fetch(ctx.channel)
@@ -239,7 +278,12 @@ class Gather(commands.Cog, name="Gather"):
         await table.message.delete()
 
 
-    @commands.command()
+    @commands.command(
+        name="edit",
+        description="Edit the race",
+        brief="レースを編集",
+        usage="edit <rank> [race_number]"
+    )
     @commands.guild_only()
     async def edit(
         self,
@@ -291,7 +335,12 @@ class Gather(commands.Cog, name="Gather"):
         await ctx.respond("レースを編集しました。" if ctx.locale == "ja" else "Edit complete.")
 
 
-    @commands.command()
+    @commands.command(
+        name="end",
+        description="End the game",
+        brief="ゲームを終了",
+        usage="end"
+    )
     @commands.guild_only()
     async def end(self, ctx: commands.Context) -> None:
         table = await GameTable.fetch(ctx.channel)
@@ -314,7 +363,12 @@ class Gather(commands.Cog, name="Gather"):
         await ctx.respond("ゲームを終了しました。" if ctx.locale == "ja" else "Finished the game.")
 
 
-    @commands.command()
+    @commands.command(
+        name="resume",
+        description="Resume the game",
+        brief="ゲームを再開",
+        usage="resume"
+    )
     @commands.guild_only()
     async def resume(self, ctx: commands.Context) -> None:
         table = await GameTable.fetch(ctx.channel, allow_archived=True)
@@ -371,6 +425,75 @@ class Gather(commands.Cog, name="Gather"):
 
         except MyError:
             return
+
+
+    @slash_command(
+        name="help",
+        description="Show help",
+        description_localizations={"ja": "ヘルプを表示する"}
+    )
+    async def help(
+        self,
+        ctx: ApplicationContext,
+        language: Option(
+            str,
+            description="The language of the help",
+            description_localizations={"ja": "ヘルプの言語"},
+            choices=[
+                OptionChoice(name="English", value="en"),
+                OptionChoice(name="日本語", value="ja")
+            ],
+            default=None,
+            required=False
+        )
+    ) -> None:
+        """Create a help message automatically."""
+
+        await ctx.response.defer(ephemeral=True)
+        locale = language or ctx.locale
+        is_ja = locale == "ja"
+        embeds: list[Embed] = []
+        prefix = self.bot._qualified_prefix
+
+        for cog in self.bot.cogs.values():
+
+            if not cog.is_public:
+                continue
+
+            e = Embed(title=cog.description_localizations.get(locale, cog.description))
+            e.set_footer(text = '<必須> [任意]' if is_ja else '<Required> [Optional]')
+
+            for command in cog.walk_commands():
+
+                if isinstance(command, SlashCommand):
+                    usage = command.description_localizations
+                    if usage is not None:
+                        usage = usage.get(locale, command.description)
+                    e.add_field(
+                        name = f'/{command.qualified_name}',
+                        value = f'> '+ usage or command.description,
+                        inline = False
+                    )
+
+                elif isinstance(command, commands.Command):
+                    if command.hidden:
+                        continue
+                    e.add_field(
+                        name = prefix+command.usage,
+                        value = '> ' + (command.brief if is_ja else command.description),
+                        inline = False
+                    )
+
+            embeds.append(e)
+        is_compact = len(embeds) == 1
+
+        await pages.Paginator(
+            pages=embeds,
+            author_check=False,
+            show_disabled= not is_compact,
+            show_indicator= not is_compact
+        ).respond(ctx.interaction, ephemeral=True)
+        return
 
 
 def setup(bot: "QueueBot"):

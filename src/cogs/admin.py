@@ -5,6 +5,7 @@ from io import StringIO
 import sys
 
 from discord.ext import commands
+from discord.utils import get
 from discord import (
     File,
     Embed,
@@ -14,7 +15,7 @@ from discord import (
     ApplicationCommandError
 )
 
-from errors import MyError
+from errors import *
 
 DEBUG: bool = True # If you want to debug, set this to True
 
@@ -22,10 +23,16 @@ if TYPE_CHECKING:
     from bot import QueueBot
 
 
-class Admin(commands.Cog, name="Admin"):
+class Admin(commands.Cog, name="Admin", command_attrs=dict(hidden=True)):
 
     def __init__(self, bot: QueueBot) -> None:
         self.bot: QueueBot = bot
+        self.is_public: bool = False
+        self.description: str = "Admin commands"
+        self.description_localizations: dict[str, str] = {
+            "ja": "管理者用コマンド",
+            "en-US": "Admin commands"
+        }
 
 
     async def send_command_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
@@ -88,6 +95,29 @@ class Admin(commands.Cog, name="Admin"):
         buffer.seek(0)
         await self.bot.LOG_CHANNEL.send(embed=e, file=File(fp=buffer, filename='traceback.txt'))
         buffer.close()
+
+
+    @commands.command(
+        name='user',
+        aliases=['u'],
+        description='Show user info',
+        brief = 'ユーザー情報を表示',
+        usage = '!user <ID or name>',
+        hidden = True
+    )
+    @commands.is_owner()
+    async def user(self, ctx: commands.Context, user_id: Optional[int] = 0, name: Optional[str] = '') -> None:
+
+        if (user := get(self.bot.users, name=name) or get(self.bot.users, id=user_id)) is None:
+            raise NotFoundError
+
+        e = Embed(title=str(user), description='参加サーバー\n')
+        e.set_author(name=str(user.id), icon_url=user.display_avatar.url)
+
+        for g in user.mutual_guilds:
+            e.description += f'{g.name} (`{g.id}`)\n'
+
+        await self.bot.LOG_CHANNEL.send(embed=e)
 
 
     @commands.Cog.listener("on_command_error")
