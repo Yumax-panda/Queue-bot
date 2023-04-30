@@ -373,21 +373,3 @@ class GameTable(TableMixin):
         else:
             teams = Team.make_teams([Player(name=name, tag=tag) for name, tag in zip(_names, tag)])
             return cls(Game(teams))
-
-
-    def has(self, member: Member) -> bool:
-        """Check if the member is in the game
-
-        Parameters
-        ----------
-        member : Member
-            The member to check
-
-        Returns
-        -------
-        bool
-            True if the member is in the game, False otherwise
-        """
-
-        name = get_name(member)
-        return any(name in [p.name for p in team._players] for team in self._game.teams)
