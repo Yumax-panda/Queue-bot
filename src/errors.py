@@ -38,7 +38,7 @@ class ArchivedTable(MyError):
 
     def __init__(self) -> None:
         super().__init__(
-            {"ja": "このゲームは終了しています。", "en-US": "This game is archived."}
+            {"ja": "すでに終了しています。", "en-US": "Already archived."}
         )
 
 

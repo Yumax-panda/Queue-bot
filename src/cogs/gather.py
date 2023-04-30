@@ -97,7 +97,7 @@ class Gather(commands.Cog, name="Gather"):
         table = await GameTable.fetch(ctx.channel)
         table._game.get_player(get_name(ctx.author)).edit_rank(rank, _index-1)
         await table.message.edit(embed=table.embed)
-        await ctx.send("順位を編集しました。")
+        await ctx.send("Edit complete.")
 
 
     @commands.command()
@@ -106,7 +106,7 @@ class Gather(commands.Cog, name="Gather"):
         table = await GameTable.fetch(ctx.channel)
         table.is_done = True
         await table.message.edit(embed=table.embed, view=ResumeView())
-        await ctx.send("ゲームを終了しました")
+        await ctx.send("Finished the game.")
 
 
     @commands.command()
@@ -115,7 +115,7 @@ class Gather(commands.Cog, name="Gather"):
         table = await GameTable.fetch(ctx.channel)
         table.is_done = False
         await table.message.edit(embed=table.embed, view=GameView())
-        await ctx.send("ゲームを再開しました")
+        await ctx.send("Resumed the game.")
 
 
     @commands.Cog.listener("on_message")
