@@ -6,7 +6,6 @@ from discord import SelectOption
 from errors import MyError
 from .table import GatherTable, FormatTable, GameTable
 from .utils import get_name
-from .game import State
 
 
 if TYPE_CHECKING:
@@ -60,7 +59,7 @@ class GatherView(_BaseView):
         table.names.add(get_name(interaction.user))
 
         if len(table.names) == 12:
-            table.state = State.DONE
+            table.is_done = True
             await interaction.message.edit(embed=table.embed, view=None)
             await interaction.followup.send(
                 content="Select format you prefer." if interaction.locale != 'ja' else 'ゲームの形式を選択してください。',
@@ -126,7 +125,7 @@ class FormatView(_BaseView):
                 view=GameView(),
                 ephemeral=False
             )
-            table.state = State.DONE
+            table.is_done = True
             await interaction.message.edit(embed=table.embed, view=None)
         else:
             await interaction.message.edit(embed=table.embed, view=FormatView())
@@ -153,7 +152,7 @@ class FormatView(_BaseView):
             view=GameView(),
             ephemeral=False
         )
-        table.state = State.DONE
+        table.is_done = True
         await table.message.edit(embed=table.embed, view=None)
 
 
@@ -179,7 +178,7 @@ class GameView(_BaseView):
     async def end(self, button: Button, interaction: Interaction) -> None:
         await interaction.response.defer(ephemeral=False)
         table = GameTable.from_message(interaction.message)
-        table.state = State.DONE
+        table.is_done = True
         await interaction.message.edit(embed=table.embed, view=ResumeView())
         await interaction.followup.send(
             "ゲームを終了しました。" if interaction.locale == 'ja' else 'Game has ended.',
@@ -195,7 +194,7 @@ class ResumeView(_BaseView):
     async def resume(self, button: Button, interaction: Interaction) -> None:
         await interaction.response.defer(ephemeral=False)
         table = GameTable.from_message(interaction.message)
-        table.state = State.ONGOING
+        table.is_done = False
         await interaction.message.edit(embed=table.embed, view=GameView())
         await interaction.followup.send(
             "ゲームを再開しました。" if interaction.locale == 'ja' else 'Game has resumed.',

@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, TypeVar, Type, Union
-from enum import Enum
 from urllib.parse import quote
 
 from errors import *
@@ -166,15 +165,6 @@ class Team:
         return [cls(players = ps, tag = tag) for tag, ps in teams.items()]
 
 
-class State(Enum):
-    ONGOING = True
-    DONE = False
-
-    def __bool__(self) -> bool:
-        return self._value_
-
-
-
 class Game:
 
     __slots__ = (
@@ -200,8 +190,8 @@ class Game:
         return self.format == 1
 
     @property
-    def state(self) -> State:
-        return State.DONE if all(t.is_finished for t in self._teams) else State.ONGOING
+    def is_done(self) -> bool:
+        return all(t.is_finished for t in self._teams)
 
     @property
     def ranking(self) -> list[Player]:

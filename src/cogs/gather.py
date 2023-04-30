@@ -4,7 +4,6 @@ from discord.ext import commands
 from discord import Member, DMChannel
 
 from errors import *
-from components.game import State
 from components.view import GatherView, FormatView, GameView, ResumeView
 from components.table import GatherTable, FormatTable, GameTable
 from components.utils import get_name
@@ -42,13 +41,27 @@ class Gather(commands.Cog, name="Gather"):
         for m in _members:
             table.add_name(m)
 
-        await ctx.send(f"{', '.join(m.mention for m in _members)} has joined the game. (@{12-len(table.names)})")
-
-        if not table.state:
+        if table.is_done:
             await ctx.send(embed=FormatTable({-1:table.names}).embed, view=FormatView())
             await table.message.edit(embed=table.embed, view=None)
         else:
             await table.message.edit(embed=table.embed)
+
+        await ctx.send(f"{', '.join(m.mention for m in _members)} has joined the game. (@{12-len(table.names)})")
+
+
+    @commands.command(aliases=['d'])
+    @commands.guild_only()
+    async def drop(self, ctx: commands.Context, members: commands.Greedy[Member] = []) -> None:
+        table = await GatherTable.fetch(ctx.channel)
+        _members = members or [ctx.author]
+
+        for m in _members:
+            table.remove_name(m)
+
+        await table.message.edit(embed=table.embed)
+        await ctx.send(f"{', '.join(m.mention for m in _members)} has dropped the game. (@{12-len(table.names)})")
+
 
 
     @commands.command(aliases=['a', "add"])
@@ -78,7 +91,7 @@ class Gather(commands.Cog, name="Gather"):
     @commands.guild_only()
     async def end(self, ctx: commands.Context) -> None:
         table = await GameTable.fetch(ctx.channel)
-        table.state = State.DONE
+        table.is_done = True
         await table.message.edit(embed=table.embed, view=ResumeView())
 
 

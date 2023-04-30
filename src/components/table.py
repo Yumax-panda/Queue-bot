@@ -7,7 +7,7 @@ import random
 
 from errors import *
 from .utils import get_integers, get_name
-from .game import Game, Team, Player, State
+from .game import Game, Team, Player
 
 if TYPE_CHECKING:
     from discord import Message, Member
@@ -90,7 +90,7 @@ class TableMixin:
             if cls._is_valid(message):
                 table = cls.from_message(message)
 
-                if table.state == State.DONE and not allow_archived:
+                if table.is_done and not allow_archived:
                     raise ArchivedTable
 
                 return table
@@ -127,23 +127,23 @@ class TableMixin:
 
 class GatherTable(TableMixin):
 
-    __slots__ = ("names", "message", "state")
+    __slots__ = ("names", "message", "is_done")
 
     if TYPE_CHECKING:
         names: set[str]
         message: Optional[Message]
-        state: State
+        is_done: bool
 
 
     def __init__(
         self,
         names: set[str] = {},
         message: Optional[Message] = None,
-        state: State = State.ONGOING
+        is_done: bool = False
     ) -> None:
         self.names = names
         self.message = message
-        self.state = state
+        self.is_done = is_done
 
 
     def __len__(self) -> int:
@@ -162,7 +162,7 @@ class GatherTable(TableMixin):
         self.names.add(get_name(member))
 
         if len(self.names) == 12:
-            self.state = State.DONE
+            self.is_done = True
 
 
     def remove_name(self, member: Member) -> None:
@@ -180,7 +180,7 @@ class GatherTable(TableMixin):
     def embed(self):
         return Embed(
             title=f"Members @{12-len(self.names)}",
-            color=ON_GOING_COLOR if self.state == State.ONGOING else DONE_COLOR,
+            color=DONE_COLOR if self.is_done else ON_GOING_COLOR,
             description="\n".join(f"{i+1}. {name}" for i, name in enumerate(self.names))
         )
 
@@ -194,9 +194,9 @@ class GatherTable(TableMixin):
             for line in e.description.split("\n"):
                 names.add(line.split(". ")[1])
 
-        state = State.ONGOING if e.color == ON_GOING_COLOR else State.DONE
+        is_done =  e.color == DONE_COLOR
 
-        return cls(names, message, state)
+        return cls(names, message, is_done)
 
     @staticmethod
     def is_valid(message):
@@ -211,19 +211,19 @@ class GatherTable(TableMixin):
 
 class FormatTable(TableMixin):
 
-    __slots__ = ("data", "message", "state")
+    __slots__ = ("data", "message", "is_done")
 
     if TYPE_CHECKING:
         data: dict[int, set[str]]
         message: Optional[Message]
-        state: State
+        is_done: bool
 
 
     def __init__(
         self,
         _data: dict[int, set[str]],
         message: Optional[Message] = None,
-        state: State = State.ONGOING
+        is_done: bool = False
     ) -> None:
         data = _data.copy()
 
@@ -236,12 +236,12 @@ class FormatTable(TableMixin):
 
         self.data = data
         self.message = message
-        self.state = state
+        self.is_done = is_done
 
     @property
     def embed(self) -> Embed:
         e = Embed(title="Preferred format")
-        e.color = ON_GOING_COLOR if self.state == State.ONGOING else DONE_COLOR
+        e.color = DONE_COLOR if self.is_done else ON_GOING_COLOR
         e.description = "Click the buttons to vote for the format you prefer"
 
         name = {1: "FFA", 2: "2v2", 3: "3v3", 4: "4v4", 6: "6v6", -1: "Unvoted"}
@@ -259,7 +259,7 @@ class FormatTable(TableMixin):
     @classmethod
     def from_message(cls, message):
         e = message.embeds[0].copy()
-        state = State.ONGOING if e.color == ON_GOING_COLOR else State.DONE
+        is_done =  e.color == DONE_COLOR
         name = {"FFA": 1, "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6, "Unvoted":-1}
         data: dict[int, set[str]] = {}
 
@@ -268,7 +268,7 @@ class FormatTable(TableMixin):
                 continue
             data[name[field.name]] = set(field.value[2:].split(","))
 
-        return cls(data, message, state)
+        return cls(data, message, is_done)
 
     @staticmethod
     def is_valid(message):
@@ -284,28 +284,28 @@ class FormatTable(TableMixin):
 
 class GameTable(TableMixin):
 
-    __slots__ = ("_game", "message", "state")
+    __slots__ = ("_game", "message", "is_done")
 
     if TYPE_CHECKING:
         _game: Game
         message: Optional[Message]
-        state: State
+        is_done: bool
 
     def __init__(
         self,
         _game: Game,
         message: Optional[Message] = None,
-        state: State = State.ONGOING
+        is_done: bool = False
     ) -> None:
         self._game = _game
         self.message = message
-        self.state = state
+        self.is_done = is_done
 
     @property
     def embed(self) -> Embed:
         format = {1: "FFA", 2: "2v2", 3: "3v3", 4: "4v4", 6: "6v6"}[self._game.format]
         e = Embed(title=f"Format: **{format}**")
-        e.color = ON_GOING_COLOR if self.state == State.ONGOING else DONE_COLOR
+        e.color = DONE_COLOR if self.is_done else ON_GOING_COLOR
 
         if self._game.format == 1:
             for i, p in enumerate(self._game.ranking):
@@ -325,7 +325,7 @@ class GameTable(TableMixin):
                     inline=False
                 )
 
-        if self.state == State.DONE or self._game.state == State.DONE:
+        if self.is_done or self._game.is_done:
             e.set_image(url=self._game.result_url)
 
         return e
@@ -333,7 +333,7 @@ class GameTable(TableMixin):
     @classmethod
     def from_message(cls, message):
         e = message.embeds[0].copy()
-        state = State.ONGOING if e.color == ON_GOING_COLOR else State.DONE
+        is_done =  e.color == DONE_COLOR
         is_ffa: bool = "FFA" in e.title
         players: list[Player] = []
 
@@ -347,9 +347,9 @@ class GameTable(TableMixin):
                 payload["tag"] = data[2][1]
             players.append(Player(**payload))
         if is_ffa:
-            return cls(Game([Team(players=[p], tag=None) for p in players]), message, state)
+            return cls(Game([Team(players=[p], tag=None) for p in players]), message, is_done)
         else:
-            return cls(Game(Team.make_teams(players)), message, state)
+            return cls(Game(Team.make_teams(players)), message, is_done)
 
     @staticmethod
     def is_valid(message):
